@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Favikon Virtual Christmas Tree</title>
+    
+    <!-- Google Fonts: Classic Handwriting Styles -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
+    
+    <!-- TensorFlow.js & Handpose -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@3.13.0/dist/tf-core.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@3.13.0/dist/tf-converter.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@3.13.0/dist/tf-backend-webgl.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.0.7/dist/handpose.min.js" crossorigin="anonymous"></script>
+
+    <!-- Firebase Compat (Global Namespace) - Fixes Import Errors -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js" crossorigin="anonymous"></script>
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #1a4a31 0%, #05140d 100%); /* Radial gradient for depth */
+            font-family: 'Dancing Script', cursive; /* Body font */
+            color: #f0f0f0;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* UI Layer */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        header {
+            text-align: center;
+            pointer-events: auto;
+            margin-top: 10px;
+        }
+
+        h1 {
+            margin: 0;
+            font-family: 'Great Vibes', cursive; /* Title font */
+            font-size: 4.5rem;
+            font-weight: 400;
+            color: #d42426;
+            text-shadow: 
+                0 0 10px rgba(212, 36, 38, 0.5),
+                2px 2px 0px #ffbf00; /* Gold shadow */
+            line-height: 1;
+        }
+        
+        p.subtitle {
+            margin: 0;
+            font-size: 1.8rem;
+            color: #ffbf00;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            letter-spacing: 1px;
+        }
+
+        /* Controls */
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            pointer-events: auto;
+            background: rgba(12, 33, 20, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid #ffbf00; /* Gold border */
+            box-shadow: 0 0 20px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+            max-width: 320px;
+            width: 100%;
+        }
+
+        .btn {
+            background: linear-gradient(to bottom, #d42426, #b0181a);
+            color: #fff;
+            border: 2px solid #ffbf00; /* Gold border */
+            padding: 12px 25px;
+            border-radius: 50px; /* Pill shape */
+            cursor: pointer;
+            font-family: 'Dancing Script', cursive;
+            font-weight: 700;
+            font-size: 1.4rem;
+            margin-top: 12px;
+            width: 100%;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .btn.secondary {
+            background: linear-gradient(to bottom, #1e5c36, #144026);
+            border-color: #8fbc8f;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px) scale(1.02);
+            filter: brightness(1.1);
+            box-shadow: 0 6px 12px rgba(255, 191, 0, 0.3); /* Gold glow on hover */
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn:disabled {
+            background: #444;
+            border-color: #666;
+            color: #888;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #status {
+            font-size: 1.4rem;
+            color: #ffbf00;
+            margin-bottom: 15px;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0,0,0,1);
+        }
+
+        .instructions {
+            font-size: 1.1rem; 
+            margin-bottom: 20px; 
+            color: #e0e0e0; 
+            line-height: 1.5;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding: 10px 0;
+        }
+
+        /* Camera Preview - Polaroid Style */
+        #video-container {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 180px;
+            height: 145px; /* Taller for polaroid bottom */
+            background: #fff;
+            padding: 10px 10px 35px 10px; /* Extra bottom padding */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            transform: rotate(-3deg);
+            z-index: 20;
+            pointer-events: auto;
+            transition: transform 0.3s;
+        }
+        
+        #video-container:hover {
+            transform: rotate(0deg) scale(1.05);
+            z-index: 25;
+        }
+
+        #video-inner {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+            border: 1px solid #ddd;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+        
+        #video-label {
+            position: absolute;
+            bottom: 5px;
+            width: 100%;
+            text-align: center;
+            left: 0;
+            color: #333;
+            font-family: 'Dancing Script', cursive;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        /* Gesture Hint Overlay - Now Empty/Hidden mostly */
+        #gesture-hint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 6rem;
+            opacity: 0;
+            transition: opacity 0.5s;
+            text-shadow: 0 0 30px rgba(255,255,255,0.9);
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        #file-input { display: none; }
+
+        /* Gallery Modal */
+        #gallery-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 20, 13, 0.96);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            pointer-events: auto;
+            backdrop-filter: blur(10px);
+        }
+
+        #gallery-header {
+            padding: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #d42426;
+        }
+
+        #gallery-header h2 {
+            margin: 0;
+            color: #ffbf00;
+            font-family: 'Great Vibes', cursive;
+            font-size: 3.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+
+        #gallery-close {
+            background: none;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-bottom: 5px; /* align center visually */
+        }
+        
+        #gallery-close:hover {
+            background: #d42426;
+            border-color: #d42426;
+            transform: rotate(90deg);
+        }
+
+        #gallery-grid {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 25px;
+        }
+
+        .gallery-item {
+            aspect-ratio: 1;
+            border: 8px solid #fff;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            position: relative;
+            transform: rotate(var(--r));
+            transition: transform 0.3s, z-index 0.3s;
+            background: #fff;
+        }
+        
+        .gallery-item:hover {
+            transform: scale(1.2) rotate(0deg);
+            z-index: 10;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.7);
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Mobile tweaks */
+        @media (max-width: 600px) {
+            h1 { font-size: 3.5rem; }
+            #controls { left: 10px; right: 10px; width: auto; max-width: none; bottom: 20px; }
+            #video-container { width: 100px; height: 110px; padding: 5px 5px 25px 5px; top: 10px; right: 10px; bottom: auto; }
+            #video-label { font-size: 0.8rem; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 3D Container -->
+    <div id="canvas-container"></div>
+
+    <!-- UI Layer -->
+    <div id="ui-layer">
+        <header>
+            <h1>Favikon</h1>
+            <p class="subtitle">Shared Virtual Christmas Tree</p>
+        </header>
+
+        <!-- No initial emoji here anymore -->
+        <div id="gesture-hint"></div>
+
+        <div id="controls">
+            <div id="status">Initializing System...</div>
+            <div class="instructions">
+                <strong>Instructions:</strong><br>
+                1. Allow camera access.<br>
+                2. 🖐️ Open Hand = Scatter Photos<br>
+                3. ✊ Closed Fist = Assemble Tree
+            </div>
+            
+            <button id="start-btn" class="btn" disabled>
+                <span>Start Experience & Music</span>
+            </button>
+            
+            <div id="active-controls" style="display:none;">
+                <button id="upload-btn" class="btn">
+                    <span>📷 Add Your Photo</span>
+                </button>
+                <button id="gallery-btn" class="btn secondary">
+                    <span>🖼️ Open Album</span>
+                </button>
+            </div>
+            
+            <input type="file" id="file-input" accept="image/*">
+        </div>
+    </div>
+
+    <!-- Camera Preview (Polaroid Style) -->
+    <div id="video-container">
+        <div id="video-inner">
+            <video id="video" playsinline></video>
+        </div>
+        <div id="video-label">You</div>
+    </div>
+
+    <!-- Gallery Modal -->
+    <div id="gallery-modal">
+        <div id="gallery-header">
+            <h2>Community Album</h2>
+            <button id="gallery-close">&times;</button>
+        </div>
+        <div id="gallery-grid">
+            <!-- Images injected here -->
+        </div>
+    </div>
+
+    <!-- No type="module" to prevent import errors -->
+    <script>
+        // --- Firebase Configuration ---
+        // Safely access global variables injected by the environment
+        let firebaseConfig = {};
+        let appId = 'default-app-id';
+        try {
+            if (typeof __firebase_config !== 'undefined') {
+                firebaseConfig = JSON.parse(__firebase_config);
+            }
+            if (typeof __app_id !== 'undefined') {
+                appId = __app_id;
+            }
+        } catch (e) {
+            console.error("Config parsing error:", e);
+        }
+        
+        // Initialize Firebase using Global Compat Namespace
+        let auth, db;
+        try {
+            if (window.firebase) {
+                firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                db = firebase.firestore();
+                console.log("Firebase Initialized (Compat Mode)");
+            } else {
+                throw new Error("Firebase SDK not loaded");
+            }
+        } catch (e) {
+            console.error("Firebase init error:", e);
+            document.getElementById('status').textContent = "Database Error. App running in offline mode.";
+        }
+
+        // --- Global Variables ---
+        let scene, camera, renderer;
+        let particles = [];
+        let allTextures = []; // Combined default + user textures
+        let isTreeShape = true;
+        let handModel = null;
+        let isVideoReady = false;
+        let audioCtx;
+        let currentUser = null;
+
+        const PARTICLE_COUNT = 200;
+        
+        // --- Initialization ---
+        async function init() {
+            try {
+                initThreeJS();
+                generateDefaultTextures(); // Start with defaults
+                createParticles(); 
+                initSnow();
+                
+                // UI Event Listeners
+                setupUI();
+
+                // AI & Camera
+                initAI();
+
+                // Firebase Auth & Data
+                if(auth) initAuth();
+                
+                animate();
+            } catch (e) {
+                console.error("Critical Init Error:", e);
+                document.getElementById('status').textContent = "Initialization failed. Please refresh.";
+            }
+        }
+
+        async function initAI() {
+             try {
+                 const videoEl = await initCamera();
+                 if (videoEl) {
+                     document.getElementById('status').textContent = "Loading AI Model...";
+                     await loadHandModel();
+                     if(handModel) {
+                         document.getElementById('status').textContent = "AI Ready! Connecting to cloud...";
+                         checkReady();
+                         detectHands();
+                     }
+                 }
+            } catch (e) {
+                console.warn("AI/Camera failed:", e);
+                document.getElementById('status').textContent = "AI Disabled (Camera blocked/Error). Click Start.";
+                // Enable start button anyway so users can see the tree
+                document.getElementById('start-btn').disabled = false;
+            }
+        }
+
+        function checkReady() {
+            const btn = document.getElementById('start-btn');
+            btn.disabled = false;
+            document.getElementById('status').textContent = "Ready! Click Start.";
+        }
+
+        // --- Firebase Logic (Compat API) ---
+        async function initAuth() {
+            if (!auth) return;
+
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    currentUser = user;
+                    console.log("User signed in:", user.uid);
+                    subscribeToPhotos();
+                }
+            });
+
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await auth.signInWithCustomToken(__initial_auth_token);
+                } else {
+                    await auth.signInAnonymously();
+                }
+            } catch (error) {
+                console.error("Auth failed", error);
+                document.getElementById('status').textContent = "Connection Error. Refresh page.";
+            }
+        }
+
+        function subscribeToPhotos() {
+            if (!db) return;
+            // Use Compat API path construction
+            const photosCol = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tree-photos');
+            
+            // Compat OrderBy
+            const query = photosCol.orderBy('createdAt', 'desc');
+
+            query.onSnapshot((snapshot) => {
+                const newPhotos = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.base64) {
+                        newPhotos.push(data);
+                    }
+                });
+                
+                updateTexturePool(newPhotos);
+                updateGallery(newPhotos);
+            }, (error) => {
+                console.error("Data fetch error:", error);
+            });
+        }
+
+        async function uploadPhoto(file) {
+            if (!currentUser || !db) {
+                alert("You need to be connected to upload.");
+                return;
+            }
+            
+            const status = document.getElementById('status');
+            status.textContent = "Compressing & Uploading...";
+            
+            try {
+                const base64 = await resizeImage(file, 256, 256);
+                
+                const photosCol = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('tree-photos');
+                
+                await photosCol.add({
+                    base64: base64,
+                    uploadedBy: currentUser.uid,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                status.textContent = "Upload Success! Added to Tree.";
+                setTimeout(() => status.textContent = "Waiting for gesture...", 3000);
+            } catch (e) {
+                console.error(e);
+                status.textContent = "Upload Failed. Try smaller image.";
+            }
+        }
+
+        // --- Image Processing ---
+        function resizeImage(file, maxWidth, maxHeight) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > maxWidth) {
+                                height *= maxWidth / width;
+                                width = maxWidth;
+                            }
+                        } else {
+                            if (height > maxHeight) {
+                                width *= maxHeight / height;
+                                height = maxHeight;
+                            }
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        resolve(canvas.toDataURL('image/jpeg', 0.7));
+                    };
+                    img.onerror = reject;
+                };
+                reader.onerror = reject;
+            });
+        }
+
+        function updateTexturePool(firestorePhotos) {
+            const newTextures = [...defaultTextures];
+            
+            firestorePhotos.forEach(p => {
+                const img = new Image();
+                img.src = p.base64;
+                const tex = new THREE.Texture(img);
+                img.onload = () => { tex.needsUpdate = true; };
+                newTextures.push(tex);
+            });
+            
+            allTextures = newTextures;
+            updateParticlesMaterial();
+        }
+
+        function updateGallery(photos) {
+            const grid = document.getElementById('gallery-grid');
+            grid.innerHTML = '';
+            
+            if(photos.length === 0) {
+                grid.innerHTML = '<div style="color:#eee; font-size:1.5rem; text-align:center; grid-column:1/-1;">No photos yet. Add one!</div>';
+                return;
+            }
+
+            photos.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'gallery-item';
+                // Random rotation for scattered look
+                div.style.setProperty('--r', (Math.random() * 10 - 5) + 'deg');
+                
+                const img = document.createElement('img');
+                img.src = p.base64;
+                div.appendChild(img);
+                grid.appendChild(div);
+            });
+        }
+
+        // --- UI Setup ---
+        function setupUI() {
+            document.getElementById('upload-btn').addEventListener('click', () => {
+                document.getElementById('file-input').click();
+            });
+            
+            document.getElementById('file-input').addEventListener('change', (e) => {
+                if(e.target.files[0]) uploadPhoto(e.target.files[0]);
+            });
+            
+            const startBtn = document.getElementById('start-btn');
+            startBtn.addEventListener('click', () => {
+                startAudio();
+                startBtn.style.display = 'none';
+                document.getElementById('active-controls').style.display = 'block';
+            });
+            
+            const modal = document.getElementById('gallery-modal');
+            document.getElementById('gallery-btn').addEventListener('click', () => {
+                modal.style.display = 'flex';
+            });
+            document.getElementById('gallery-close').addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+        }
+
+        // --- Three.js Logic ---
+        let defaultTextures = [];
+
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            // Match the CSS radial gradient roughly with fog
+            scene.fog = new THREE.FogExp2(0x05140d, 0.0025);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 10, 35);
+            camera.lookAt(0, 10, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const pointLight = new THREE.PointLight(0xffbf00, 1, 100);
+            pointLight.position.set(10, 20, 10);
+            scene.add(pointLight);
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function generateDefaultTextures() {
+            const colors = ['#d42426', '#0f5928', '#ffbf00', '#ffffff'];
+            const labels = ['Favikon', 'Merry', 'Xmas', '2025'];
+            
+            defaultTextures = [];
+            
+            // 1. Generate Text/Color Defaults
+            colors.forEach((color, i) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256; canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                
+                ctx.fillStyle = color;
+                ctx.fillRect(0,0,256,256);
+                
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 15;
+                ctx.strokeRect(0,0,256,256);
+                
+                ctx.fillStyle = (color === '#ffffff') ? '#d42426' : 'white';
+                // Update font here too for the 3D textures
+                ctx.font = 'bold 40px "Segoe UI", Arial'; // Keep simple font for 3D readability
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(labels[i % labels.length], 128, 128);
+                
+                const tex = new THREE.CanvasTexture(canvas);
+                defaultTextures.push(tex);
+            });
+
+            // 2. Load Custom Photo URLs
+            const customImageURLs = [
+                'https://images.unsplash.com/photo-1543589077-47d81606c1bf?auto=format&fit=crop&w=256&q=80', // Horse/Winter
+                'https://images.unsplash.com/photo-1512389142860-9c449e58a543?auto=format&fit=crop&w=256&q=80', // Xmas Tree
+                'https://images.unsplash.com/photo-1482517967863-00e15c9b4499?auto=format&fit=crop&w=256&q=80', // Gifts
+            ];
+
+            const loader = new THREE.TextureLoader();
+            loader.setCrossOrigin('anonymous');
+
+            customImageURLs.forEach(url => {
+                const tex = loader.load(url);
+                defaultTextures.push(tex);
+            });
+            
+            allTextures = [...defaultTextures];
+        }
+
+        function createParticles() {
+            const geometry = new THREE.PlaneGeometry(2.5, 2.5);
+
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const mat = new THREE.MeshLambertMaterial({ 
+                    map: allTextures[i % allTextures.length], 
+                    side: THREE.DoubleSide 
+                });
+                const mesh = new THREE.Mesh(geometry, mat);
+                
+                const treePos = calculateTreePosition(i, PARTICLE_COUNT);
+                const scatterPos = calculateScatterPosition();
+
+                mesh.position.copy(scatterPos);
+                mesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
+
+                scene.add(mesh);
+                particles.push({ mesh, treePos, scatterPos, rotationSpeed: { x: (Math.random()-0.5)*0.03, y: (Math.random()-0.5)*0.03 } });
+            }
+        }
+
+        function updateParticlesMaterial() {
+            particles.forEach((p, i) => {
+                p.mesh.material.map = allTextures[i % allTextures.length];
+                p.mesh.material.needsUpdate = true;
+            });
+        }
+
+        function calculateTreePosition(index, total) {
+            const y = (index / total) * 35 - 10; 
+            const radius = (1 - (index / total)) * 12 + 1; 
+            const angle = index * 0.5; 
+            return new THREE.Vector3(Math.cos(angle)*radius, y, Math.sin(angle)*radius);
+        }
+
+        function calculateScatterPosition() {
+            const r = 45 + Math.random() * 25;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.random() * Math.PI;
+            return new THREE.Vector3(r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi));
+        }
+
+        // --- Snow System ---
+        let snowSystem;
+        function initSnow() {
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            for(let i=0; i<1500; i++) {
+                vertices.push(Math.random()*100-50, Math.random()*80-10, Math.random()*100-50);
+            }
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            
+            const canvas = document.createElement('canvas');
+            canvas.width=32; canvas.height=32;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'white';
+            ctx.beginPath(); ctx.arc(16,16,12,0,Math.PI*2); ctx.fill();
+            
+            const material = new THREE.PointsMaterial({
+                size: 0.6, map: new THREE.CanvasTexture(canvas), transparent: true, opacity: 0.8, depthWrite: false
+            });
+            
+            snowSystem = new THREE.Points(geometry, material);
+            scene.add(snowSystem);
+        }
+
+        // --- Animation Loop ---
+        let time = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.01;
+
+            particles.forEach(p => {
+                let tx, ty, tz;
+                if (isTreeShape) {
+                    const originalRadius = Math.sqrt(p.treePos.x**2 + p.treePos.z**2);
+                    const originalAngle = Math.atan2(p.treePos.z, p.treePos.x);
+                    const currentAngle = originalAngle + time * 0.5;
+                    
+                    tx = Math.cos(currentAngle) * originalRadius;
+                    ty = p.treePos.y;
+                    tz = Math.sin(currentAngle) * originalRadius;
+                    
+                    p.mesh.lookAt(0, ty, 0); 
+                } else {
+                    tx = p.scatterPos.x;
+                    ty = p.scatterPos.y;
+                    tz = p.scatterPos.z;
+                    p.mesh.rotation.x += p.rotationSpeed.x;
+                    p.mesh.rotation.y += p.rotationSpeed.y;
+                }
+
+                const speed = isTreeShape ? 0.04 : 0.02;
+                p.mesh.position.x += (tx - p.mesh.position.x) * speed;
+                p.mesh.position.y += (ty - p.mesh.position.y) * speed;
+                p.mesh.position.z += (tz - p.mesh.position.z) * speed;
+            });
+
+            if (snowSystem) {
+                const positions = snowSystem.geometry.attributes.position.array;
+                for(let i=1; i<positions.length; i+=3) {
+                    positions[i] -= 0.15;
+                    if(positions[i] < -20) positions[i] = 60;
+                }
+                snowSystem.geometry.attributes.position.needsUpdate = true;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // --- AI & Handpose ---
+        async function initCamera() {
+            const video = document.getElementById('video');
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error("Browser API not supported");
+                }
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 320, height: 240 } });
+                video.srcObject = stream;
+                return new Promise(resolve => { video.onloadedmetadata = () => { video.play(); isVideoReady = true; resolve(video); }});
+            } catch (e) {
+                console.warn("Camera init error:", e);
+                throw e;
+            }
+        }
+
+        async function loadHandModel() {
+            try {
+                handModel = await handpose.load();
+                console.log("Handpose loaded successfully");
+            } catch(e) {
+                console.error("Handpose load failed:", e);
+                throw e;
+            }
+        }
+
+        async function detectHands() {
+            if (!isVideoReady || !handModel) { 
+                if(isVideoReady && handModel) requestAnimationFrame(detectHands); 
+                return; 
+            }
+            
+            const video = document.getElementById('video');
+            try {
+                const predictions = await handModel.estimateHands(video);
+    
+                const statusEl = document.getElementById('status');
+                const hintEl = document.getElementById('gesture-hint');
+    
+                if (predictions.length > 0) {
+                    const landmarks = predictions[0].landmarks;
+                    const wrist = landmarks[0];
+                    const tips = [8, 12, 16, 20];
+                    
+                    let avgDist = 0;
+                    tips.forEach(i => {
+                        avgDist += Math.sqrt(Math.pow(landmarks[i][0]-wrist[0],2) + Math.pow(landmarks[i][1]-wrist[1],2) + Math.pow(landmarks[i][2]-wrist[2],2));
+                    });
+                    avgDist /= 4;
+                    
+                    const palmSize = Math.sqrt(Math.pow(landmarks[0][0]-landmarks[9][0],2) + Math.pow(landmarks[0][1]-landmarks[9][1],2));
+                    const ratio = avgDist / palmSize;
+    
+                    if (ratio < 1.4) {
+                        if (!isTreeShape) {
+                            isTreeShape = true;
+                            statusEl.textContent = "Fist Detected: Assembling Tree!"; // Removed Emoji
+                            statusEl.style.color = "#d42426";
+                            hintEl.textContent = ""; // Removed Emoji
+                            hintEl.style.opacity = 0;
+                            playChime();
+                        }
+                    } else {
+                        if (isTreeShape) {
+                            isTreeShape = false;
+                            statusEl.textContent = "Open Hand: Scattering!"; // Removed Emoji
+                            statusEl.style.color = "#ffbf00";
+                            hintEl.textContent = ""; // Removed Emoji
+                            hintEl.style.opacity = 0;
+                        }
+                    }
+                    setTimeout(() => { hintEl.style.opacity = 0; }, 1000);
+                } else {
+                    if(currentUser && document.getElementById('start-btn').style.display === 'none') {
+                        statusEl.textContent = "Waiting for hand...";
+                        statusEl.style.color = "white";
+                    }
+                }
+            } catch(e) {
+                console.error("Detection error:", e);
+                return; 
+            }
+            requestAnimationFrame(detectHands);
+        }
+
+        // --- Audio ---
+        function startAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            setInterval(() => { if (Math.random() > 0.7) playSleighBell(); }, 600);
+            playMelody();
+        }
+
+        function playChime() {
+            if (!audioCtx) return;
+            const t = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.frequency.setValueAtTime(800, t);
+            osc.frequency.exponentialRampToValueAtTime(10, t+1);
+            g.gain.setValueAtTime(0.3, t);
+            g.gain.exponentialRampToValueAtTime(0.01, t+1);
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(); osc.stop(t+1);
+        }
+
+        function playSleighBell() {
+            if (!audioCtx) return;
+            const t = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(3000, t);
+            g.gain.setValueAtTime(0.05, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t+0.1);
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(); osc.stop(t+0.1);
+        }
+
+        // "We Wish You a Merry Christmas" Melody
+        // Key: G Major-ish (Simplified)
+        // We(D) Wish(G) You a(G A) Mer(G) ry(F#) Christ(E) mas(C)
+        // We(E) Wish(A) You a(A B) Mer(A) ry(G) Christ(F#) mas(D)
+        const melody = [
+            // Line 1: We wish you a merry Christmas
+            {n:55, d:0.5}, // G3 (Sol) - Low
+            {n:60, d:0.5}, // C4 (Do)
+            {n:60, d:0.25}, {n:62, d:0.25}, // C4 D4 (Do Re)
+            {n:60, d:0.25}, {n:59, d:0.25}, // C4 B3 (Do Ti)
+            {n:57, d:0.5}, // A3 (La)
+            {n:57, d:0.5}, // A3 (La)
+
+            // Line 2: We wish you a merry Christmas
+            {n:62, d:0.5}, // D4 (Re)
+            {n:62, d:0.25}, {n:64, d:0.25}, // D4 E4 (Re Mi)
+            {n:62, d:0.25}, {n:60, d:0.25}, // D4 C4 (Re Do)
+            {n:59, d:0.5}, // B3 (Ti)
+            {n:55, d:0.5}, // G3 (Sol)
+
+            // Line 3: We wish you a merry Christmas
+            {n:60, d:0.5}, // C4
+            {n:64, d:0.5}, // E4
+            {n:64, d:0.25}, {n:65, d:0.25}, // E4 F4
+            {n:64, d:0.25}, {n:62, d:0.25}, // E4 D4
+            {n:60, d:0.5}, // C4
+            {n:57, d:0.5}, // A3
+
+            // Line 4: And a happy new year
+            {n:55, d:0.25}, {n:55, d:0.25}, // G3 G3
+            {n:57, d:0.5}, // A3
+            {n:62, d:0.5}, // D4
+            {n:59, d:0.5}, // B3
+            {n:60, d:1.0}  // C4
+        ];
+        
+        let noteIdx = 0;
+        function playMelody() {
+            if(!audioCtx) return;
+            const note = melody[noteIdx];
+            const t = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            
+            // Note calculation: MIDI note to frequency
+            osc.frequency.value = 440 * Math.pow(2, (note.n-69)/12);
+            osc.type = 'sine'; // Sine wave for smoother sound
+
+            // Envelope
+            g.gain.setValueAtTime(0.1, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t+note.d);
+            
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(); osc.stop(t+note.d);
+            
+            setTimeout(() => {
+                noteIdx = (noteIdx+1)%melody.length;
+                playMelody();
+            }, note.d*1000 + 100); // 100ms gap between notes
+        }
+
+        window.addEventListener('load', init);
+
+    </script>
+</body>
+</html>
