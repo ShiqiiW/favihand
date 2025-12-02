@@ -384,19 +384,14 @@
     <!-- No type="module" to prevent import errors -->
     <script>
         // --- Firebase Configuration ---
-        // Safely access global variables injected by the environment
-        let firebaseConfig = {};
-        let appId = 'default-app-id';
-        try {
-            if (typeof __firebase_config !== 'undefined') {
-                firebaseConfig = JSON.parse(__firebase_config);
-            }
-            if (typeof __app_id !== 'undefined') {
-                appId = __app_id;
-            }
-        } catch (e) {
-            console.error("Config parsing error:", e);
-        }
+        const firebaseConfig = {
+  apiKey: "AIzaSyBSyMSYhux5xdrntLOmzCEoR8Ec3-jgCWk",
+  authDomain: "favikon-tree.firebaseapp.com",
+  projectId: "favikon-tree",
+  storageBucket: "favikon-tree.firebasestorage.app",
+  messagingSenderId: "437991233066",
+  appId: "1:437991233066:web:65a517a7ef16442fdc5553"
+};
         
         // Initialize Firebase using Global Compat Namespace
         let auth, db;
